@@ -1,0 +1,532 @@
+---
+title: "Books"
+author: "Vajinder"
+date: "2024-12-05"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(reshape)
+library(pheatmap)
+library(car)
+library(lmtest)
+library(lme4)
+library(tidyverse)
+library(caret)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+```
+
+```{r}
+data <- read.csv("SDD.csv")
+summary(data)
+library(dplyr)
+
+# List of valid cities with their corresponding states
+valid_cities <- c("Bangalore", "Varanasi", "Jaipur", "Pune", "Thane", "Chennai", "Nagpur", "Kalyan", 
+                  "Rajkot", "Srinagar", "Nashik", "Ahmedabad", "Kolkata", "Mumbai", "Lucknow", "Surat", 
+                  "Visakhapatnam", "Ludhiana", "Bhopal", "Meerut", "Agra", "Hyderabad", "Vasai-Virar", 
+                  "Vadodara", "Kanpur", "Ghaziabad", "Faridabad", "Delhi", "Patna", "Indore")
+
+# Mapping of cities to states
+city_to_state <- c(
+  "Bangalore" = "Karnataka", "Varanasi" = "Uttar Pradesh", "Jaipur" = "Rajasthan", "Pune" = "Maharashtra", 
+  "Thane" = "Maharashtra", "Chennai" = "Tamil Nadu", "Nagpur" = "Maharashtra", "Kalyan" = "Maharashtra", 
+  "Rajkot" = "Gujarat", "Srinagar" = "Jammu & Kashmir", "Nashik" = "Maharashtra", "Ahmedabad" = "Gujarat", 
+  "Kolkata" = "West Bengal", "Mumbai" = "Maharashtra", "Lucknow" = "Uttar Pradesh", "Surat" = "Gujarat", 
+  "Visakhapatnam" = "Andhra Pradesh", "Ludhiana" = "Punjab", "Bhopal" = "Madhya Pradesh", "Meerut" = "Uttar Pradesh", 
+  "Agra" = "Uttar Pradesh", "Hyderabad" = "Telangana", "Vasai-Virar" = "Maharashtra", "Vadodara" = "Gujarat", 
+  "Kanpur" = "Uttar Pradesh", "Ghaziabad" = "Uttar Pradesh", "Faridabad" = "Haryana", "Delhi" = "Delhi", 
+  "Patna" = "Bihar", "Indore" = "Madhya Pradesh"
+)
+
+# Create the 'State' column by mapping cities to states
+data$State <- ifelse(data$City %in% names(city_to_state), city_to_state[data$City], "Unknown")
+# Remove rows where Dietary.Habits is 'Others'
+data <- data[data$State != 'Unknown', ]
+
+# Dataset of cities and case numbers
+data1 <- data.frame(
+  City = c("Bangalore", "Varanasi", "Jaipur", "Pune", "Thane", "Chennai", "Nagpur", "Kalyan", 
+           "Rajkot", "Srinagar", "Nashik", "Ahmedabad", "Kolkata", "Mumbai", "Lucknow", "Surat", 
+           "Visakhapatnam", "Ludhiana", "Bhopal", "Meerut", "Agra", "Hyderabad", "Vasai-Virar", 
+           "Vadodara", "Kanpur", "Ghaziabad", "Faridabad", "Delhi", "Patna", "Indore"),
+  Cases = sample(450:3000, 30) # Random case numbers for demonstration
+)
+
+city_cases <- data %>%
+  group_by(City) %>%
+  summarize(Cases = n())  #
+# Add coordinates (latitude and longitude) for the cities
+city_coords <- data.frame(
+  City = c("Bangalore", "Varanasi", "Jaipur", "Pune", "Thane", "Chennai", "Nagpur", "Kalyan", 
+           "Rajkot", "Srinagar", "Nashik", "Ahmedabad", "Kolkata", "Mumbai", "Lucknow", "Surat", 
+           "Visakhapatnam", "Ludhiana", "Bhopal", "Meerut", "Agra", "Hyderabad", "Vasai-Virar", 
+           "Vadodara", "Kanpur", "Ghaziabad", "Faridabad", "Delhi", "Patna", "Indore"),
+  Latitude = c(12.9716, 25.3176, 26.9124, 18.5204, 19.2183, 13.0827, 21.1458, 19.2403, 
+               22.3039, 34.0837, 19.9975, 23.0225, 22.5726, 19.0760, 26.8467, 21.1702, 
+               17.6868, 30.9010, 23.2599, 28.9845, 27.1767, 17.3850, 19.3919, 22.3072, 
+               26.4499, 28.6692, 28.4089, 28.6139, 25.5941, 22.7196),
+  Longitude = c(77.5946, 82.9739, 75.7873, 73.8567, 72.9781, 80.2707, 79.0882, 73.1305, 
+                70.8022, 74.7973, 73.7898, 72.5714, 88.3639, 72.8777, 80.9462, 72.8311, 
+                83.2185, 75.8573, 77.4126, 77.7064, 78.0081, 78.4867, 72.8345, 73.1812, 
+                80.3319, 77.4538, 77.3178, 77.2090, 85.1376, 75.8577)
+)
+
+data1 <- merge(city_coords, city_cases, by = "City", all.x = TRUE)
+
+# Replace NA cases with 0 for cities with no data
+data1$Cases[is.na(data$Cases)] <- 0
+
+india_map <- ne_countries(scale = "medium", country = "India", returnclass = "sf")
+ggplot(data = india_map) +
+  geom_sf(fill = "lightblue", color = "black") +
+  geom_point(data = data1, aes(x = Longitude, y = Latitude, size = Cases, color = Cases), alpha = 0.7) +
+  scale_color_gradient(low = "yellow", high = "red") +
+  labs(
+    title = "Cases Distribution Across Indian Cities",
+    size = "Number of Cases",
+    color = "Number of Cases"
+  ) +
+  theme_minimal()
+
+
+
+```
+
+
+```{r}
+
+data$Have.you.ever.had.suicidal.thoughts..[data$Have.you.ever.had.suicidal.thoughts..=='Yes'] <- 1
+data$Have.you.ever.had.suicidal.thoughts..[data$Have.you.ever.had.suicidal.thoughts..=='No'] <- 0
+data$Family.History.of.Mental.Illness[data$Family.History.of.Mental.Illness=='Yes'] <- 1
+data$Family.History.of.Mental.Illness[data$Family.History.of.Mental.Illness=='No'] <- 0
+# Changing Sleep.Duration to numerical
+# Remove rows where Sleep.Duration is "Others"
+data <- data[data$Sleep.Duration != "Others", ]
+
+data$`Sleep.Duration`[data$`Sleep.Duration` == 'Less than 5 hours'] <- 1
+data$`Sleep.Duration`[data$`Sleep.Duration` == '5-6 hours'] <- 2
+data$`Sleep.Duration`[data$`Sleep.Duration` == '7-8 hours'] <- 3
+data$`Sleep.Duration`[data$`Sleep.Duration` == 'More than 8 hours'] <- 4
+data$Gender[data$Gender=='Male'] <- 0
+data$Gender[data$Gender=='Female'] <- 1
+# Checking the value counts for Sleep.Duration
+table(data$`Sleep.Duration`)
+# Remove rows where Dietary.Habits is 'Others'
+data <- data[data$`Dietary.Habits` != 'Others', ]
+
+# Removing students with no study satisfaction due to low counts
+data <- data[data$`Study.Satisfaction` > 0, ]
+table(data$`Study.Satisfaction`)
+
+# Removing students with no academic pressure due to low counts
+data <- data[data$`Academic.Pressure` > 0, ]
+table(data$`Academic.Pressure`)
+
+# Removing students older than 30
+data <- data[data$Age <= 30, ]
+table(data$Age)
+# Remove rows where CGPA is 0
+data <- data %>% filter(CGPA != 0)
+data$CGPA_level <- cut(data$CGPA, 
+                       breaks = c(0, 3, 6, 8, 10), 
+                       labels = c("D", "C", "B", "A"), 
+                       right = TRUE)
+```
+
+
+```{r}
+# Removing professions that are not "Student" due to low counts
+data <- data[data$Profession == 'Student', ]
+table(data$Profession)
+
+# Dropping the 'Profession' column if it has only one value
+data <- data[, !(colnames(data) == 'Profession')]
+data <- data[, !(colnames(data) == 'Work.Pressure')]
+# 2. Handle missing values (you can choose to impute or remove)
+data <- na.omit(data)  # Removing rows with NAs, or you could use imputation techniques
+
+# Change 'Dietary.Habits' to numerical values
+data$`Dietary.Habits`[data$`Dietary.Habits` == 'Healthy'] <- 1
+data$`Dietary.Habits`[data$`Dietary.Habits` == 'Unhealthy'] <- 2
+data$`Dietary.Habits`[data$`Dietary.Habits` == 'Moderate'] <- 3
+
+# Verify the changes by checking the frequency table
+table(data$`Dietary.Habits`)
+# Create the New_Degree column based on degree patterns
+data$New_Degree <- NA  # Initialize the new column
+
+# Map to 'Graduated', 'Post Graduated', 'Higher Secondary'
+data$New_Degree[grepl('BSc|BCA|B.Ed|BHM|B.Pharm|B.Com|BE|BA|B.Arch|B.Tech|BBA|LLB', data$Degree)] <- 'Graduated'
+data$New_Degree[grepl('MSc|MCA|M.Ed|M.Pharm|M.Com|ME|MA|M.Arch|M.Tech|MBA|LLM|PhD|MBBS|MD|MHM', data$Degree)] <- 'Post Graduated'
+data$New_Degree[data$Degree == 'Class 12'] <- 'Higher Secondary'
+
+# Remove the 'Others' category
+data <- data[data$Degree != 'Others', ]
+
+# Check the frequency counts of the New_Degree column
+table(data$New_Degree)
+
+# Convert the New_Degree column to numerical values
+data$New_Degree[data$New_Degree == 'Graduated'] <- 1
+data$New_Degree[data$New_Degree == 'Post Graduated'] <- 2
+data$New_Degree[data$New_Degree == 'Higher Secondary'] <- 3
+data <- data |> select(-Job.Satisfaction)
+
+data <- data |> select(id, Gender, State, City, Degree, New_Degree, Age, CGPA, CGPA_level, everything())
+
+# Verify the changes
+table(data$New_Degree)
+sum(is.na(data))
+```
+
+```{r}
+data$Gender <- as.factor(data$Gender)
+data$New_Degree <- as.factor(data$New_Degree)
+data$Have.you.ever.had.suicidal.thoughts.. <- as.factor(data$Have.you.ever.had.suicidal.thoughts..)
+data$Family.History.of.Mental.Illness <- as.factor(data$Family.History.of.Mental.Illness)
+data$Sleep.Duration <- as.factor(data$Sleep.Duration)
+data$Dietary.Habits <- as.factor(data$Dietary.Habits)
+data$Depression <- as.factor(data$Depression)
+data$State <- as.factor(data$State)
+data$Age <- as.factor(data$Age)
+summary(data)
+
+# Assuming your dataset is named 'data' and the 'new_degree' column contains the degree information
+ggplot(data, aes(x = (New_Degree))) +  # Converting to factor for categorical representation
+  geom_bar(fill = "red", color = "black") +  # Bar plot for distribution
+  scale_x_discrete(labels = c("1" = "Graduated", 
+                              "2" = "Post Graduate", 
+                              "3" = "Higher Secondary")) +
+  labs(title = "Distribution of Education Level", 
+       x = "New Degree", 
+       y = "Count") +
+  theme_minimal()
+
+```
+```{r}
+library(ggplot2)
+
+# Histogram for a continuous variable (e.g., Age)
+ggplot(data, aes(x = Age)) + 
+  geom_histogram(binwidth = 1, fill = "lightblue", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution of Age") + 
+  theme_minimal()
+
+# Boxplot for Age to detect outliers
+ggplot(data, aes(x = "", y =  CGPA)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Boxplot of CGPA") + 
+  theme_minimal()
+# Calculate IQR for CGPA
+IQR_CGPA <- IQR(data$CGPA)
+lower_bound <- quantile(data$CGPA, 0.25) - 1.5 * IQR_CGPA
+upper_bound <- quantile(data$CGPA, 0.75) + 1.5 * IQR_CGPA
+
+```
+```{r}
+ggplot(data, aes(x = Dietary.Habits, fill = Dietary.Habits)) +
+  geom_bar() +
+  labs(title = "Distribution of Dietary Habits", x = "Dietary Habits", y = "Count") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1") +
+  scale_x_discrete(
+    labels = c("1" = "Healthy", "2" = "Unhealthy", "3" = "Moderate")  # Label the numeric codes
+  ) +
+  theme_minimal()
+
+ggplot(data) +
+  geom_bar(aes(x = `Family.History.of.Mental.Illness`, fill = `Family.History.of.Mental.Illness`), position = "dodge") +
+  facet_wrap(~`Academic.Pressure`) +  # Facets based on Academic Pressure
+  labs(title = "Distribution of Family History and Academic Pressure",
+       x = "Family History of Mental Illness",
+       y = "Count") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1")
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Assuming your 'data' has the 'State' and 'Depression' columns
+# Create a summary table of depression cases by state
+state_depression_summary <- data %>%
+  group_by(State, Depression) %>%
+  tally() %>%
+  spread(Depression, n, fill = 0)  # Pivot to get 0/1 columns for 'No' and 'Yes'
+
+# Rename columns for clarity
+colnames(state_depression_summary) <- c("State", "No", "Yes")
+
+# Plotting the distribution with side-by-side bars
+ggplot(state_depression_summary, aes(x = State)) +
+  geom_bar(aes(y = Yes, fill = "Yes"), stat = "identity", position = "dodge") +
+  geom_bar(aes(y = No, fill = "No"), stat = "identity", position = "dodge") +
+  labs(title = "Depression Cases by State", 
+       x = "State", 
+       y = "Count of Cases",
+       fill = "Depression Status") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +  # Rotate x labels for better readability
+  scale_fill_manual(values = c("Yes" = "lightblue", "No" = "lightcoral"))  # Optional: Customize bar colors
+
+```
+```{r}
+chisq.test(data$Depression, data$Age)
+chisq.test(data$Depression, data$CGPA_level)
+chisq.test(data$Depression, data$Gender)
+chisq.test(data$Depression, data$Academic.Pressure)
+chisq.test(data$Depression, data$Study.Satisfaction)
+chisq.test(data$Depression, data$Sleep.Duration)
+chisq.test(data$Depression, data$Have.you.ever.had.suicidal.thoughts..)
+chisq.test(data$Depression, data$Family.History.of.Mental.Illness)
+chisq.test(data$Depression, data$New_Degree)
+chisq.test(data$Depression, data$Dietary.Habits)
+chisq.test(data$Depression, data$Financial.Stress)
+chisq.test(data$Depression, data$State)
+chisq.test(data$Depression, data$Work.Study.Hours)
+
+chisq.test(data$Academic.Pressure, data$State)
+chisq.test(data$Academic.Pressure, data$New_Degree)
+chisq.test(data$Academic.Pressure, data$Study.Satisfaction)
+chisq.test(data$Academic.Pressure, data$Sleep.Duration)
+chisq.test(data$Academic.Pressure, data$Dietary.Habits)
+chisq.test(data$Academic.Pressure, data$Have.you.ever.had.suicidal.thoughts..)
+chisq.test(data$Academic.Pressure, data$Work.Study.Hours)
+chisq.test(data$Academic.Pressure, data$Financial.Stress)
+chisq.test(data$Academic.Pressure, data$Family.History.of.Mental.Illness)
+chisq.test(data$Academic.Pressure, data$Age)
+
+
+chisq.test(data$Study.Satisfaction, data$Family.History.of.Mental.Illness)
+chisq.test(data$Study.Satisfaction, data$New_Degree)
+chisq.test(data$Study.Satisfaction, data$Financial.Stress)
+chisq.test(data$Study.Satisfaction, data$Work.Study.Hours)
+chisq.test(data$Study.Satisfaction, data$Have.you.ever.had.suicidal.thoughts..)
+chisq.test(data$Study.Satisfaction, data$Dietary.Habits)
+chisq.test(data$Study.Satisfaction, data$Sleep.Duration)
+chisq.test(data$Study.Satisfaction, data$Age)
+
+chisq.test(data$Sleep.Duration, data$Family.History.of.Mental.Illness)
+chisq.test(data$Sleep.Duration, data$New_Degree)
+chisq.test(data$Sleep.Duration, data$Financial.Stress)
+chisq.test(data$Sleep.Duration, data$Work.Study.Hours)
+chisq.test(data$Sleep.Duration, data$Have.you.ever.had.suicidal.thoughts..)
+chisq.test(data$Sleep.Duration, data$Dietary.Habits)
+chisq.test(data$Sleep.Duration, data$Age)
+
+chisq.test(data$Dietary.Habits, data$Family.History.of.Mental.Illness)
+chisq.test(data$Dietary.Habits, data$New_Degree)
+chisq.test(data$Dietary.Habits, data$Financial.Stress)
+chisq.test(data$Dietary.Habits, data$Work.Study.Hours)
+chisq.test(data$Dietary.Habits, data$Have.you.ever.had.suicidal.thoughts..)
+chisq.test(data$Dietary.Habits, data$Age)
+
+chisq.test(data$Have.you.ever.had.suicidal.thoughts.., data$Family.History.of.Mental.Illness)
+chisq.test(data$Have.you.ever.had.suicidal.thoughts.., data$Financial.Stress)
+chisq.test(data$Have.you.ever.had.suicidal.thoughts.., data$New_Degree)
+chisq.test(data$Have.you.ever.had.suicidal.thoughts.., data$Work.Study.Hours)
+chisq.test(data$Have.you.ever.had.suicidal.thoughts.., data$Age)
+
+chisq.test(data$Work.Study.Hours, data$Financial.Stress)
+chisq.test(data$Work.Study.Hours, data$Family.History.of.Mental.Illness)
+chisq.test(data$Work.Study.Hours, data$Age)
+chisq.test(data$Work.Study.Hours, data$New_Degree)
+chisq.test(data$Family.History.of.Mental.Illness, data$New_Degree)
+chisq.test(data$Age, data$Family.History.of.Mental.Illness)
+chisq.test(data$CGPA_level, data$Sleep.Duration)
+chisq.test(data$CGPA_level, data$Study.Satisfaction)
+chisq.test(data$CGPA_level, data$Family.History.of.Mental.Illness)
+chisq.test(data$Age, data$CGPA_level)
+```
+```{r}
+library(arm)
+# 3. Create a logistic regression model
+# Assuming 'Depression' is the binary outcome variable
+model0 <- glm(Depression ~ Study.Satisfaction + Sleep.Duration +
+               Family.History.of.Mental.Illness, data = data, family = binomial())
+
+# 4. Summary of the model
+summary(model0)
+arm::binnedplot(fitted(model0),resid(model1,type="response"))
+vif(model0)
+```
+
+
+```{r}
+model0.1 <- glm(Depression ~ Study.Satisfaction + Sleep.Duration +
+               Family.History.of.Mental.Illness + Study.Satisfaction*Sleep.Duration, data = data, family = binomial())
+
+# 4. Summary of the model
+summary(model0.1)
+arm::binnedplot(fitted(model0.1),resid(model1,type="response"))
+vif(model0.1)
+```
+
+
+```{r}
+model1 <- glm(Depression ~ Age + CGPA_level+ Study.Satisfaction + Academic.Pressure
+              + Have.you.ever.had.suicidal.thoughts.. + Work.Study.Hours + Financial.Stress + 
+               Family.History.of.Mental.Illness + Dietary.Habits + Sleep.Duration, data = data, family = binomial())
+
+# 4. Summary of the model
+summary(model1)
+arm::binnedplot(fitted(model1),resid(model1,type="response"))
+vif(model1)
+```
+
+
+```{r}
+residuals_model <- resid(model1, type = "response")
+
+# Calculate the standardized residuals
+std_residuals <- rstandard(model1)
+
+# Find rows where residuals are extreme (greater than 2 or -2, commonly used thresholds)
+outliers <- which(abs(std_residuals) > 2)
+outliers_data <- data[outliers, ]
+print(outliers_data)
+BIC(model1)
+```
+
+
+```{r}
+library(arm)
+
+model2 <- glm(Depression ~ Age + CGPA_level+ Study.Satisfaction + Academic.Pressure
+              + Have.you.ever.had.suicidal.thoughts.. + Work.Study.Hours + Financial.Stress + 
+               Family.History.of.Mental.Illness + factor(Sleep.Duration) + (Dietary.Habits) -1 , data = data, family = binomial())
+
+summary(model2)
+arm::binnedplot(fitted(model2),resid(model2,type="response"))
+
+```
+
+
+```{r}
+library(lme4)
+model3 <- glmer(Depression ~ Age + Academic.Pressure + CGPA_level  + Study.Satisfaction + 
+               Have.you.ever.had.suicidal.thoughts.. + Work.Study.Hours + 
+               Financial.Stress + Family.History.of.Mental.Illness + Sleep.Duration + 
+               (1|Dietary.Habits) , data = data, family = binomial)
+
+summary(model3)
+arm::binnedplot(fitted(model3),resid(model3,type="response"))
+
+```
+
+```{r}
+random_effects <- ranef(model3)
+
+# Plot Q-Q plot for random effects
+# Plotting for each random effect (for Dietary.Habits, Sleep.Duration, and State)
+par(mfrow = c(1, 3)) # Arrange plots side by side
+
+# Q-Q plot for Dietary.Habits
+qqnorm(random_effects$Dietary.Habits[,1], main = "Q-Q Plot: Dietary.Habits")
+qqline(random_effects$Dietary.Habits[,1])
+
+# Q-Q plot for Sleep.Duration
+qqnorm(random_effects$Sleep.Duration[,1], main = "Q-Q Plot: Sleep.Duration")
+qqline(random_effects$Sleep.Duration[,1])
+
+# Q-Q plot for State
+qqnorm(random_effects$State[,1], main = "Q-Q Plot: State")
+qqline(random_effects$State[,1])
+
+# Reset plot layout
+par(mfrow = c(1, 1))
+
+library(blmeco)
+
+dispersion_glmer(model3)
+
+
+```
+```{r}
+library(car)
+# Assuming you have already fit your GLMM model (e.g., mod)
+crPlots(model1, terms = ~ Age + CGPA)
+
+```
+
+
+```{r}
+
+data <- data %>%
+  mutate(comp_res = coef(model2)["Age"]*Age + residuals(model2, type = "working"))
+
+
+ggplot(data, aes(x = Age, y = comp_res)) +  # Replace 'Age' with the predictor of interest
+  geom_point() +  # Scatter plot of the data
+  geom_smooth(color = "red", method = "lm", linetype = 2, se = F) +  # Regression line without confidence interval
+  geom_smooth(se = F)  # Default smooth line without confidence interval
+data <- data %>%
+  mutate(comp_res = coef(model2)["CGPA"]*CGPA + residuals(model2, type = "working"))
+
+ggplot(data, aes(x = CGPA, y = comp_res)) +  # Replace 'Age' with the predictor of interest
+  geom_point() +  # Scatter plot of the data
+  geom_smooth(color = "red", method = "lm", linetype = 2, se = F) +  # Regression line without confidence interval
+  geom_smooth(se = F)  # Default smooth line without confidence interval
+
+
+# Step 2: Calculate DFBetas
+acs <- dfbetas(model2) |> 
+  as.data.frame() |> 
+  rename_with(~ paste0("dfb_", .x)) |> 
+  cbind(data)  # Add the original data back to the dfbetas result for later use
+
+# Step 3: Prepare data for plotting
+acs_long <- acs |> 
+  mutate(obs_number = row_number()) |> 
+  pivot_longer(cols = starts_with("dfb")) |> 
+  mutate(large = ifelse(abs(value) > 2/sqrt(nrow(acs)), "red", "black"))  # Threshold for large DFBetas
+
+# Step 4: Plotting with ggplot
+acs_long |> 
+  ggplot(aes(obs_number, value, color = large)) + 
+  geom_point() +  # Scatter plot
+  geom_hline(yintercept = c(-1, 1) * 2/sqrt(nrow(acs)), color = "red") +  # Horizontal lines for large DFBetas
+  facet_wrap(~ name) +  # Facet by each coefficient (dfbetas for each predictor)
+  scale_color_identity()  # Use black for normal, red for large DFBetas
+```
+```{r}
+# For pooling model
+AIC(model0, model1, model2, model3)
+plot(predict(model0), main = "Null Model Predictions")
+plot(predict(model1), main = "Complete Pooling Model Predictions")
+plot(predict(model2), main = "No Pooling Model Predictions")
+plot(predict(model3), main = "Partial Pooling Model Predictions")
+plot(model3)
+# Threshold for classification
+threshold <- 0.5
+
+# Predicted classes
+null_pred <- ifelse(predict(model0, type = "response") > threshold, 1, 0)
+pooled_pred <- ifelse(predict(model1, type = "response") > threshold, 1, 0)
+no_pool_pred <- ifelse(predict(model2, type = "response") > threshold, 1, 0)
+partial_pool_pred <- ifelse(predict(model3, type = "response") > threshold, 1, 0)
+
+# Using caret library
+library(caret)
+
+# Confusion matrix for pooling model
+confusionMatrix(as.factor(null_pred), as.factor(data$Depression))
+confusionMatrix(as.factor(pooled_pred), as.factor(data$Depression))
+
+# Confusion matrix for no pooling model
+confusionMatrix(as.factor(no_pool_pred), as.factor(data$Depression))
+
+# Confusion matrix for partial pooling model
+confusionMatrix(as.factor(partial_pool_pred), as.factor(data$Depression))
+
+```
+
+
+
