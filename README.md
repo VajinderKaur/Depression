@@ -1,7 +1,8 @@
 # README
 
 ## Project Title
-**Student Depression Analysis and Modeling**
+**Student Mental Health: A Statistical Exploration of Stress
+ and Well-Being**
 
 ## Abstract
 This project investigates the factors contributing to depression among students in India. Utilizing a dataset comprising responses from 27,901 students across various regions, the study aims to identify and predict depression in its early stages using statistical modeling and machine learning techniques. By shedding light on mental health issues, the project seeks to improve awareness and proactive mental health management among Indian youth.
