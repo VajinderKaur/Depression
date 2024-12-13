@@ -66,14 +66,6 @@ The preprocessing steps involved:
 #### Logistic Regression
 The logistic regression model is employed to predict depression, focusing on binary outcomes. The logit link function ensures probabilities remain between 0 and 1.
 
-**Model Formula**:
-\[
-\log \left( \frac{\mu}{1-\mu} \right) = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \ldots + \beta_p X_p
-\]
-- \( \mu \): Probability of success (binary outcome = 1)
-- \( \beta_0, \beta_1, \ldots \beta_p \): Coefficients to be estimated
-- \( X_1, X_2, \ldots, X_p \): Predictor variables
-
 #### Pooling Approaches
 1. **Complete Pooling**:
    - Assumes homogeneity across all groups.
