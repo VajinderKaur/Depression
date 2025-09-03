@@ -1,6 +1,6 @@
 # README
 
-## Project Title
+## Project 
 **Student Mental Health: A Statistical Exploration of Stress
  and Well-Being**
 
